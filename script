@@ -1,0 +1,49 @@
+// With this script you can get a list of members from a Slack group and include them on email list (which you can use to send automated using as described in https://github.com/ryanrwatkins/Google-Sheet-Event-Reminder-Emails or https://github.com/ryanrwatkins/batch_emails_from_google_sheet)
+// We want to have two tabs, one for members who will be emailed and one for members in Slack who want to removed from the emails
+var spreadsheet_remove = SpreadsheetApp.openByUrl("https://docs.google.com/spreadsheets/d/YOUR SHEET/edit#gid=0").getSheetByName("remove");
+var spreadsheet = SpreadsheetApp.openByUrl("https://docs.google.com/spreadsheets/d/YOUR SHEET/edit#gid=0").getSheetByName("members");
+
+// We create an array of emails of those who want to be removed based on the emails we put into the tab (each time someone asks to be removed, just add their email to this tab)
+
+var values = spreadsheet_remove.getDataRange().getValues()
+var remove = new Array();
+for(n=0;n<values.length;++n){
+var remove_value = values[n][0] ;
+remove.push(remove_value);
+}
+
+// We want to clear the old list of member email address that we will replace with a new list
+spreadsheet.getRange("A1:A").clear();
+spreadsheet.getRange("F1:F").clear();
+
+// In Google Apps Script you can stor passwords in Properties and then get them using this code
+var scriptProperties = PropertiesService.getScriptProperties();
+var slack = scriptProperties.getProperties();
+
+// Next we access the Slack API https://api.slack.com/web
+var options = {
+  'method' : 'GET',
+  "headers" : {
+       Authorization : "Bearer " + slack['slack_auth'], 
+     }
+};
+
+// We fetch the user list and parse the JSON files
+var data = UrlFetchApp.fetch("https://slack.com/api/users.list?pretty=1", options);
+  var myObj = JSON.parse(data.getContentText());
+
+// We add the emails to a blank list
+  var email = [];
+  var i;
+  var d = 0;
+  for (i = 1 ; i < myObj.members.length; i++)        // i < myObj.members.length
+  {
+    // check to verify the email is not in the remove list
+    if (remove.indexOf(myObj.members[i].profile.email) == -1) 
+    {
+    email += myObj.members[i].profile.email;
+    // add the email address to the member tab of the spreadsheet
+    spreadsheet.appendRow([myObj.members[i].profile.email]);
+    d = myObj.members.length;
+    }
+  }
